@@ -1,50 +1,47 @@
 import time
 
-def timer(func):
+
+def validate_args(func):
     def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"Время выполнения функции {func.__name__}: {elapsed_time} секунд")
-        return result
+        if len(args) != 1:
+            return "Not enough arguments" if len(args) < 1 else "Too many arguments"
+        arg = args[0]
+        if not isinstance(arg, int):
+            return "Wrong types"
+        if arg < 0:
+            return "Negative argument"
+        return func(*args, **kwargs)
     return wrapper
+
 
 def memoize(func):
     cache = {}
 
-    def wrapper(*args, **kwargs):
-        key = (args, frozenset(kwargs.items()))
-        if key in cache:
-            return cache[key]
-
-        result = func(*args, **kwargs)
-        cache[key] = result
-
-        return result
+    def wrapper(*args):
+        if args not in cache:
+            result = func(*args)
+            cache[args] = result
+        return cache[args]
 
     wrapper.__name__ = func.__name__
     wrapper.__doc__ = func.__doc__
 
     return wrapper
 
-def validate_args(func):
+
+def timer(func):
     def wrapper(*args, **kwargs):
-        if len(args) != 1:
-            return "Not enough arguments" if len(args) < 1 else "Too many arguments"
-
-        if not isinstance(args[0], int):
-            return "Wrong types"
-
-        if args[0] < 0:
-            return "Negative argument"
-
-        return func(*args, **kwargs)
-
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        if not hasattr(wrapper, 'total_time'):
+            wrapper.total_time = 0
+        wrapper.total_time += end - start
+        return end
     return wrapper
 
+
 @timer
-@memoize
 @validate_args
 def fibonacci(n):
     if n < 2:
@@ -52,8 +49,18 @@ def fibonacci(n):
     return fibonacci(n - 1) + fibonacci(n - 2)
 
 
-fibonacci_without_memoize = timer(fibonacci)
-result_without_memoize = fibonacci_without_memoize(10)
+@timer
+@memoize
+@validate_args
+def fibonacci_with_memoize(n):
+    if n < 2:
+        return n
+    else:
+        return fibonacci_with_memoize(n - 1) + fibonacci_with_memoize(n - 2)
 
 
-result_with_memoize = fibonacci(10)
+fibonacci(20)
+fibonacci_with_memoize(20)
+
+print(f"Время выполнения без memoize: {fibonacci.total_time} секунд") 
+print(f"Время выполнения с memoize: {fibonacci_with_memoize.total_time} секунд")
